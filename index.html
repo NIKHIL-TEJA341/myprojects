@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Nikhil's Age Calculator</title>
+
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      background: linear-gradient(180deg,#0f172a 0%, #071029 50%);
+      color:#e6eef8;
+      display:flex;align-items:center;justify-content:center;padding:28px;
+    }
+
+    .card{
+      width:100%;max-width:720px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border-radius:14px;padding:26px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 8px 30px rgba(2,6,23,0.6);
+      backdrop-filter: blur(6px);
+    }
+
+    .header{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+    .logo{
+      width:56px;height:56px;border-radius:12px;
+      background:linear-gradient(135deg,#7c3aed,#06b6d4);
+      display:flex;align-items:center;justify-content:center;
+      font-weight:700;font-size:22px;
+    }
+    h1{font-size:22px;letter-spacing:0.3px}
+    p.lead{color:rgba(230,238,248,0.8);font-size:13px}
+
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
+    @media (max-width:640px){.grid{grid-template-columns:1fr}}
+
+    label{display:block;font-size:12px;color:rgba(230,238,248,0.75);margin-bottom:6px}
+    input[type="date"], input[type="time"]{
+      width:100%;padding:10px 12px;border-radius:10px;
+      border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);
+      color:inherit;font-size:14px
+    }
+
+    .controls{display:flex;gap:10px;align-items:center;margin-top:12px}
+    button{
+      cursor:pointer;padding:10px 14px;border-radius:10px;border:0;
+      background:linear-gradient(90deg,#06b6d4,#7c3aed);color:#041022;font-weight:600
+    }
+    button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:inherit}
+
+    .result{
+      margin-top:18px;padding:18px;border-radius:12px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));
+      border:1px solid rgba(255,255,255,0.03);
+      display:flex;gap:12px;align-items:center;flex-wrap:wrap
+    }
+
+    .pill{
+      background:rgba(255,255,255,0.04);padding:12px 16px;border-radius:12px;
+      min-width:110px;text-align:center
+    }
+    .pill .num{font-size:18px;font-weight:700}
+    .pill .lbl{font-size:12px;color:rgba(230,238,248,0.75);margin-top:6px}
+
+    .small{font-size:12px;color:rgba(230,238,248,0.7);margin-top:8px}
+
+    footer.attribution{margin-top:18px;font-size:12px;color:rgba(230,238,248,0.6);display:flex;justify-content:space-between;align-items:center}
+  </style>
+</head>
+
+<body>
+  <main class="card">
+
+    <div class="header">
+      <div class="logo">N</div>
+      <div>
+        <h1>Nikhil's Age Calculator</h1>
+        <p class="lead">Enter your birth date (and time) to get your exact age breakdown.</p>
+      </div>
+    </div>
+
+    <form id="ageForm" onsubmit="return false;">
+
+      <div class="grid">
+        <div>
+          <label for="dob">Date of birth</label>
+          <input id="dob" type="date" required />
+        </div>
+        <div>
+          <label for="time">Time of birth (optional)</label>
+          <input id="time" type="time" />
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="calcBtn" type="button">Calculate Age</button>
+        <button id="clearBtn" type="button" class="secondary">Clear</button>
+        <div style="margin-left:auto" class="small">Tip: pick year easily using calendar</div>
+      </div>
+
+      <div class="result" id="result" style="display:none"></div>
+
+    </form>
+
+  </main>
+
+  <script>
+    const dobInput = document.getElementById('dob');
+    const timeInput = document.getElementById('time');
+    const calcBtn = document.getElementById('calcBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const resultEl = document.getElementById('result');
+
+    const pad = n => String(n).padStart(2,'0');
+
+    function calcAge(birth, now){
+      if(birth > now) return null;
+
+      let y = now.getUTCFullYear() - birth.getUTCFullYear();
+      let m = now.getUTCMonth() - birth.getUTCMonth();
+      let d = now.getUTCDate() - birth.getUTCDate();
+
+      if(d < 0){
+        const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0));
+        d += prev.getUTCDate();
+        m--;
+      }
+      if(m < 0){ m += 12; y--; }
+
+      const diff = now - birth;
+      return {
+        years: y,
+        months: m,
+        days: d,
+        diffDays: Math.floor(diff / 86400000),
+        diffHours: Math.floor(diff / 3600000),
+        diffMins: Math.floor(diff / 60000)
+      };
+    }
+
+    function showResult(r){
+      if(!r){
+        resultEl.innerHTML = "<div style='color:#ffb4b4;font-weight:600'>Future date chosen. Pick a valid date.</div>";
+        resultEl.style.display = 'flex';
+        return;
+      }
+      resultEl.innerHTML = `
+        <div class="pill"><div class="num">${r.years}</div><div class="lbl">Years</div></div>
+        <div class="pill"><div class="num">${r.months}</div><div class="lbl">Months</div></div>
+        <div class="pill"><div class="num">${r.days}</div><div class="lbl">Days</div></div>
+        <div class="pill"><div class="num">${r.diffDays}</div><div class="lbl">Total days</div></div>
+        <div class="pill"><div class="num">${r.diffHours}</div><div class="lbl">Total hours</div></div>
+        <div class="pill"><div class="num">${r.diffMins}</div><div class="lbl">Total minutes</div></div>
+      `;
+      resultEl.style.display = 'flex';
+    }
+
+    calcBtn.onclick = () => {
+      if(!dobInput.value) return;
+
+      const [Y,M,D] = dobInput.value.split('-').map(Number);
+      let h=0, min=0;
+
+      if(timeInput.value)
+        [h,min] = timeInput.value.split(':').map(Number);
+
+      const birth = new Date(Date.UTC(Y, M-1, D, h, min));
+      const now = new Date();
+      const nowUTC = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        now.getUTCHours(),
+        now.getUTCMinutes()
+      ));
+
+      showResult(calcAge(birth, nowUTC));
+    };
+
+    clearBtn.onclick = () => {
+      dobInput.value = "";
+      timeInput.value = "";
+      resultEl.style.display = "none";
+      resultEl.innerHTML = "";
+    };
+  </script>
+</body>
+</html>
