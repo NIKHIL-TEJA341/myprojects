@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Age Calculator — Clean & Responsive</title>
+  <!--
+    Single-file age calculator: HTML + CSS + JS
+    Instructions: save this as `index.html` in a folder, open with Live Server in VS Code or double-click in browser.
+  -->
+  <style>
+    /* Reset-ish */
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      background: linear-gradient(180deg,#0f172a 0%, #071029 50%);
+      color:#e6eef8;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      display:flex;align-items:center;justify-content:center;padding:28px;
+    }
+
+    .card{
+      width:100%;max-width:720px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border-radius:14px;padding:26px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 8px 30px rgba(2,6,23,0.6);
+      backdrop-filter: blur(6px);
+    }
+
+    .header{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+    .logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#06b6d4);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px}
+    h1{font-size:20px;letter-spacing:0.2px}
+    p.lead{color:rgba(230,238,248,0.8);font-size:13px}
+
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
+    @media (max-width:640px){.grid{grid-template-columns:1fr}.header{flex-direction:row}}
+
+    label{display:block;font-size:12px;color:rgba(230,238,248,0.75);margin-bottom:6px}
+    input[type="date"], input[type="time"], select{
+      width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);color:inherit;font-size:14px
+    }
+
+    .controls{display:flex;gap:10px;align-items:center;margin-top:12px}
+    button{cursor:pointer;padding:10px 14px;border-radius:10px;border:0;background:linear-gradient(90deg,#06b6d4,#7c3aed);color:#041022;font-weight:600}
+    button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:inherit}
+
+    .result{
+      margin-top:18px;padding:18px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03);
+      display:flex;gap:12px;align-items:center;flex-wrap:wrap
+    }
+
+    .pill{background:rgba(255,255,255,0.04);padding:12px 16px;border-radius:12px;min-width:110px;text-align:center}
+    .pill .num{font-size:18px;font-weight:700}
+    .pill .lbl{font-size:12px;color:rgba(230,238,248,0.75);margin-top:6px}
+
+    .small{font-size:12px;color:rgba(230,238,248,0.7);margin-top:8px}
+
+    footer.attribution{margin-top:18px;font-size:12px;color:rgba(230,238,248,0.6);display:flex;justify-content:space-between;align-items:center}
+
+    /* little entrance animation */
+    .card{transform:translateY(6px);opacity:0;animation:popIn .45s ease forwards}
+    @keyframes popIn{to{transform:none;opacity:1}}
+
+    /* accessible focus states */
+    input:focus, button:focus{outline:3px solid rgba(7,89,133,0.18);outline-offset:2px}
+  </style>
+</head>
+<body>
+  <main class="card" role="main" aria-labelledby="title">
+    <div class="header">
+      <div class="logo" aria-hidden>AC</div>
+      <div>
+        <h1 id="title">Age Calculator</h1>
+        <p class="lead">Enter your birth date (and optionally time) to get your age in years, months, days — and exact total days/hours/minutes.</p>
+      </div>
+    </div>
+
+    <!-- Inputs -->
+    <form id="ageForm" onsubmit="return false;" aria-describedby="helpText">
+      <div class="grid">
+        <div>
+          <label for="dob">Date of birth</label>
+          <input id="dob" type="date" required aria-required="true" />
+        </div>
+        <div>
+          <label for="time">Time of birth (optional)</label>
+          <input id="time" type="time" />
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="calcBtn" type="button">Calculate Age</button>
+        <button id="clearBtn" type="button" class="secondary">Clear</button>
+        <div style="margin-left:auto" class="small" id="helpText">Tip: use the calendar to pick year quickly.</div>
+      </div>
+
+      <div class="result" id="result" aria-live="polite" style="display:none">
+        <!-- pills inserted by JS -->
+      </div>
+
+      <div class="small">If you enter a future date the calculator will show an error.</div>
+    </form>
+
+    <footer class="attribution">
+      <div>Built with ❤️ — Simple, accessible UI</div>
+      <div style="font-size:12px;color:rgba(230,238,248,0.55)">VS Code • Single file</div>
+    </footer>
+  </main>
+
+  <script>
+    // Helper to pad numbers
+    const pad = n => String(n).padStart(2,'0');
+
+    const dobInput = document.getElementById('dob');
+    const timeInput = document.getElementById('time');
+    const calcBtn = document.getElementById('calcBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const resultEl = document.getElementById('result');
+
+    // Calculate age breakdown between two dates
+    function calcAge(birth, now){
+      if(birth>now) return null; // future
+
+      // Work in UTC to avoid daylight-savings surprises
+      const bY = birth.getUTCFullYear(), bM = birth.getUTCMonth(), bD = birth.getUTCDate();
+      const nY = now.getUTCFullYear(), nM = now.getUTCMonth(), nD = now.getUTCDate();
+
+      let years = nY - bY;
+      let months = nM - bM;
+      let days = nD - bD;
+
+      if(days < 0){
+        // borrow days from previous month
+        const prevMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0)); // last day of prev month
+        days += prevMonth.getUTCDate();
+        months -= 1;
+      }
+      if(months < 0){
+        months += 12; years -= 1;
+      }
+
+      // Exact totals (difference in ms)
+      const diffMs = now.getTime() - birth.getTime();
+      const diffMins = Math.floor(diffMs / (1000*60));
+      const diffHours = Math.floor(diffMs / (1000*60*60));
+      const diffDays = Math.floor(diffMs / (1000*60*60*24));
+
+      return {years, months, days, diffDays, diffHours, diffMins};
+    }
+
+    function showResult(obj){
+      if(!obj){
+        resultEl.innerHTML = `<div style=\"color:#ffb4b4;font-weight:600\">Selected date is in the future — pick a past date.</div>`;
+        resultEl.style.display = 'flex';
+        return;
+      }
+
+      resultEl.innerHTML = '';
+
+      const parts = [
+        {k:'years', t:'Years'},
+        {k:'months', t:'Months'},
+        {k:'days', t:'Days'},
+        {k:'diffDays', t:'Total days'},
+        {k:'diffHours', t:'Total hours'},
+        {k:'diffMins', t:'Total minutes'}
+      ];
+
+      parts.forEach(p => {
+        const v = obj[p.k];
+        const pill = document.createElement('div');
+        pill.className = 'pill';
+        pill.innerHTML = `<div class=\"num\">${v}</div><div class=\"lbl\">${p.t}</div>`;
+        resultEl.appendChild(pill);
+      });
+
+      resultEl.style.display = 'flex';
+    }
+
+    calcBtn.addEventListener('click', ()=>{
+      const dobVal = dobInput.value;
+      if(!dobVal){
+        dobInput.focus();
+        return;
+      }
+
+      // parse date input: it's in local time; we'll combine with optional time then convert to Date object
+      const [year,month,day] = dobVal.split('-').map(Number);
+      let hours = 0, minutes = 0;
+      if(timeInput.value){
+        [hours, minutes] = timeInput.value.split(':').map(Number);
+      }
+
+      // Build a Date in UTC by using Date.UTC so we avoid timezone shifts in the calculations
+      const birthUtc = new Date(Date.UTC(year, month-1, day, hours, minutes, 0));
+      const nowUtc = new Date();
+      const nowUtcNormalized = new Date(Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate(), nowUtc.getUTCHours(), nowUtc.getUTCMinutes(), nowUtc.getUTCSeconds()));
+
+      const res = calcAge(birthUtc, nowUtcNormalized);
+      showResult(res);
+    });
+
+    clearBtn.addEventListener('click', ()=>{
+      dobInput.value = '';
+      timeInput.value = '';
+      resultEl.style.display = 'none';
+      resultEl.innerHTML = '';
+    });
+
+    // keyboard: press Enter to calculate if focused on inputs
+    [dobInput, timeInput].forEach(el=>{
+      el.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') calcBtn.click(); });
+    });
+
+    // small enhancement: default dob to 20 years ago for demo
+    (function(){
+      const now = new Date();
+      const y = now.getFullYear()-20;
+      const m = pad(now.getMonth()+1);
+      const d = pad(now.getDate());
+      dobInput.value = `${y}-${m}-${d}`;
+    })();
+  </script>
+</body>
+</html>
